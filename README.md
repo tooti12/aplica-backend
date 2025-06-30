@@ -14,7 +14,7 @@ A Django backend project with Celery integration and a Job Board app that suppor
 ### 1. Clone the repository
 ```bash
 git clone <your-repo-url>
-cd Aplika_backend
+cd aplica_backend
 ```
 
 ### 2. Create and activate a virtual environment
@@ -61,12 +61,12 @@ python manage.py runserver
 
 ### Start Celery worker
 ```bash
-celery -A Aplika_backend worker --loglevel=info --concurrency 8
+celery -A aplica_backend worker --loglevel=info --concurrency 8
 ```
 
 ### Start Celery Beat (scheduler)
 ```bash
-celery -A Aplika_backend beat --loglevel=info
+celery -A aplica_backend beat --loglevel=info
 ```
 
 ### Run the Hirebase Celery task manually
@@ -82,7 +82,7 @@ python manage.py delete_old_jobs
 ```
 
 ## Project Structure
-- `Aplika_backend/` - Django project root
+- `aplica_backend/` - Django project root
 - `job_board/` - Main app for job board features
 - `.env` - Your environment variables (not committed)
 - `sample.env` - Example environment variables
@@ -119,7 +119,7 @@ The current configuration includes SQLite timeout settings to handle concurrent 
 
 1. **Reduce worker concurrency** if using SQLite:
    ```bash
-   celery -A Aplika_backend worker --loglevel=info --concurrency=2
+   celery -A aplica_backend worker --loglevel=info --concurrency=2
    ```
 
 2. **Use separate database files** for different workers (advanced setup)

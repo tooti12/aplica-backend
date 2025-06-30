@@ -10,6 +10,7 @@ from pytz import UTC
 from job_board.models import Job
 from pathlib import Path
 import glob
+from aplica_backend.settings import LOGS_DIR
 
 # Get logger for this module
 logger = logging.getLogger(__name__)
@@ -33,8 +34,6 @@ def delete_old_jobs():
 def cleanup_old_logs():
     """Clean up log files older than 3 days."""
     try:
-        from Aplika_backend.settings import LOGS_DIR
-
         # Calculate cutoff date (3 days ago)
         cutoff_date = timezone.now() - timedelta(days=3)
         deleted_count = 0
@@ -133,7 +132,9 @@ def hirebase_task():
         payload = {"page": page, "limit": limit}
         response = requests.post(endpoint, headers=headers, json=payload)
         if response.status_code != 200:
-            logger.error(f"Failed to fetch jobs from Hirebase (page {page}): {response.status_code} - {response.text}")
+            logger.error(
+                f"Failed to fetch jobs from Hirebase (page {page}): {response.status_code} - {response.text}"
+            )
             break
 
         data = response.json()
@@ -155,14 +156,18 @@ def hirebase_task():
 
                     date_posted = parse_datetime(job_data.get("date_posted"))
                     date_created = parse_datetime(job_data.get("date_created"))
-                    date_validthrough = parse_datetime(job_data.get("date_validthrough"))
+                    date_validthrough = parse_datetime(
+                        job_data.get("date_validthrough")
+                    )
 
                     _, created = Job.objects.update_or_create(
                         _id=job_id,
                         defaults={
-                            "title": job_data.get("job_title") or job_data.get("title", ""),
+                            "title": job_data.get("job_title")
+                            or job_data.get("title", ""),
                             "description": job_data.get("description", ""),
-                            "application_link": job_data.get("application_link") or job_data.get("url", ""),
+                            "application_link": job_data.get("application_link")
+                            or job_data.get("url", ""),
                             "date_posted": date_posted or timezone.now(),
                             "date_created": date_created,
                             "date_validthrough": date_validthrough,
@@ -174,7 +179,9 @@ def hirebase_task():
                             "source": job_data.get("source"),
                             "source_domain": job_data.get("source_domain"),
                             "requirements_raw": job_data.get("requirements_raw"),
-                            "location_requirements_raw": job_data.get("location_requirements_raw"),
+                            "location_requirements_raw": job_data.get(
+                                "location_requirements_raw"
+                            ),
                             "salary_raw": job_data.get("salary_raw"),
                             "locations_alt_raw": job_data.get("locations_alt_raw"),
                             "locations_raw": job_data.get("locations_raw"),
@@ -185,9 +192,12 @@ def hirebase_task():
                             "timezones_derived": job_data.get("timezones_derived"),
                             "lats_derived": job_data.get("lats_derived"),
                             "lngs_derived": job_data.get("lngs_derived"),
-                            "organization": job_data.get("organization") or job_data.get("company_name"),
-                            "organization_url": job_data.get("organization_url") or job_data.get("company_link"),
-                            "organization_logo": job_data.get("organization_logo") or job_data.get("company_logo"),
+                            "organization": job_data.get("organization")
+                            or job_data.get("company_name"),
+                            "organization_url": job_data.get("organization_url")
+                            or job_data.get("company_link"),
+                            "organization_logo": job_data.get("organization_logo")
+                            or job_data.get("company_logo"),
                             "domain_derived": job_data.get("domain_derived"),
                             "meta": job_data.get("meta"),
                             "score": job_data.get("score"),
@@ -197,7 +207,9 @@ def hirebase_task():
                             "salary_range": job_data.get("salary_range"),
                             "job_board": job_data.get("job_board"),
                             "job_board_link": job_data.get("job_board_link"),
-                            "requirements_summary": job_data.get("requirements_summary"),
+                            "requirements_summary": job_data.get(
+                                "requirements_summary"
+                            ),
                             "company_data": job_data.get("company_data"),
                             "company_slug": job_data.get("company_slug"),
                             "job_slug": job_data.get("job_slug"),
@@ -215,12 +227,16 @@ def hirebase_task():
                 logger.error(
                     f"Error processing Hirebase job {job_data.get('id', job_data.get('_id', 'unknown'))}: {e}"
                 )
-                logger.info(f"Page {page}: Created {page_created_count} jobs, Updated {page_updated_count} jobs.")
+                logger.info(
+                    f"Page {page}: Created {page_created_count} jobs, Updated {page_updated_count} jobs."
+                )
                 total_created += page_created_count
                 total_updated += page_updated_count
                 continue
 
-        logger.info(f"Page {page}: Created {page_created_count} jobs, Updated {page_updated_count} jobs.")
+        logger.info(
+            f"Page {page}: Created {page_created_count} jobs, Updated {page_updated_count} jobs."
+        )
         total_created += page_created_count
         total_updated += page_updated_count
 
@@ -228,14 +244,18 @@ def hirebase_task():
         if total_pages is None:
             total_pages = data.get("total_pages")
             if not total_pages:
-                logger.info("No total_pages info in response; will stop if jobs run out.")
+                logger.info(
+                    "No total_pages info in response; will stop if jobs run out."
+                )
                 total_pages = page + 1  # fallback: stop if jobs run out
         if page >= total_pages:
             logger.info(f"Reached last page ({page}) of {total_pages}.")
             break
         page += 1
 
-    logger.info(f"Hirebase task completed! Processed {total_processed} jobs. (Total Created: {total_created}, Total Updated: {total_updated})")
+    logger.info(
+        f"Hirebase task completed! Processed {total_processed} jobs. (Total Created: {total_created}, Total Updated: {total_updated})"
+    )
 
 
 @shared_task
