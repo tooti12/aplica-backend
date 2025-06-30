@@ -155,65 +155,27 @@ def hirebase_task():
                         continue
 
                     date_posted = parse_datetime(job_data.get("date_posted"))
-                    date_created = parse_datetime(job_data.get("date_created"))
-                    date_validthrough = parse_datetime(
-                        job_data.get("date_validthrough")
-                    )
 
                     _, created = Job.objects.update_or_create(
                         _id=job_id,
                         defaults={
-                            "title": job_data.get("job_title")
-                            or job_data.get("title", ""),
+                            "job_title": job_data.get("job_title"),
                             "description": job_data.get("description", ""),
                             "application_link": job_data.get("application_link")
                             or job_data.get("url", ""),
-                            "date_posted": date_posted or timezone.now(),
-                            "date_created": date_created,
-                            "date_validthrough": date_validthrough,
-                            "employment_type": job_data.get("employment_type"),
-                            "location_type": job_data.get("location_type"),
-                            "remote_derived": job_data.get("remote_derived", False),
-                            "visa_sponsored": job_data.get("visa_sponsored", False),
-                            "source_type": job_data.get("source_type"),
-                            "source": job_data.get("source"),
-                            "source_domain": job_data.get("source_domain"),
-                            "requirements_raw": job_data.get("requirements_raw"),
-                            "location_requirements_raw": job_data.get(
-                                "location_requirements_raw"
-                            ),
-                            "salary_raw": job_data.get("salary_raw"),
-                            "locations_alt_raw": job_data.get("locations_alt_raw"),
-                            "locations_raw": job_data.get("locations_raw"),
-                            "locations_derived": job_data.get("locations_derived"),
-                            "cities_derived": job_data.get("cities_derived"),
-                            "regions_derived": job_data.get("regions_derived"),
-                            "countries_derived": job_data.get("countries_derived"),
-                            "timezones_derived": job_data.get("timezones_derived"),
-                            "lats_derived": job_data.get("lats_derived"),
-                            "lngs_derived": job_data.get("lngs_derived"),
-                            "organization": job_data.get("organization")
-                            or job_data.get("company_name"),
-                            "organization_url": job_data.get("organization_url")
-                            or job_data.get("company_link"),
-                            "organization_logo": job_data.get("organization_logo")
-                            or job_data.get("company_logo"),
-                            "domain_derived": job_data.get("domain_derived"),
-                            "meta": job_data.get("meta"),
-                            "score": job_data.get("score"),
                             "job_categories": job_data.get("job_categories"),
-                            "hirebase_job_type": job_data.get("job_type"),
+                            "job_type": job_data.get("job_type"),
+                            "location_type": job_data.get("location_type"),
                             "yoe_range": job_data.get("yoe_range"),
-                            "salary_range": job_data.get("salary_range"),
-                            "job_board": job_data.get("job_board"),
-                            "job_board_link": job_data.get("job_board_link"),
+                            "date_posted": date_posted or timezone.now(),
+                            "company_name": job_data.get("company_name"),
+                            "company_link": job_data.get("company_link"),
+                            "company_logo": job_data.get("company_logo"),
                             "requirements_summary": job_data.get(
                                 "requirements_summary"
                             ),
-                            "company_data": job_data.get("company_data"),
-                            "company_slug": job_data.get("company_slug"),
-                            "job_slug": job_data.get("job_slug"),
                             "locations": job_data.get("locations"),
+                            "salary_range": job_data.get("salary_range"),
                         },
                     )
 

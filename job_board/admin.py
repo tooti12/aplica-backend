@@ -31,24 +31,22 @@ class EmploymentTypeFilter(admin.SimpleListFilter):
 class JobAdmin(admin.ModelAdmin):
     list_display = [
         "_id",
-        "title",
-        "organization",
+        "job_title",
+        "company_name",
         "date_posted",
-        "source",
-        "remote_derived",
-        "score",
     ]
     list_filter = [
         "date_posted",
-        EmploymentTypeFilter,
+        "job_type",
         "location_type",
-        "remote_derived",
-        "visa_sponsored",
-        "source",
-        "job_board",
-        "hirebase_job_type",
     ]
-    search_fields = ["_id", "title", "description", "organization", "job_categories"]
+    search_fields = [
+        "_id",
+        "job_title",
+        "description",
+        "company_name",
+        "job_categories",
+    ]
     readonly_fields = ["created_at", "updated_at"]
     date_hierarchy = "date_posted"
 
@@ -58,23 +56,20 @@ class JobAdmin(admin.ModelAdmin):
             {
                 "fields": (
                     "_id",
-                    "title",
+                    "job_title",
                     "description",
                     "application_link",
                     "date_posted",
-                    "date_created",
-                    "date_validthrough",
                 )
             },
         ),
         (
-            "Organization",
+            "Company Information",
             {
                 "fields": (
-                    "organization",
-                    "organization_url",
-                    "organization_logo",
-                    "domain_derived",
+                    "company_name",
+                    "company_link",
+                    "company_logo",
                 )
             },
         ),
@@ -82,12 +77,9 @@ class JobAdmin(admin.ModelAdmin):
             "Job Details",
             {
                 "fields": (
-                    "employment_type",
-                    "hirebase_job_type",
+                    "job_type",
                     "job_categories",
                     "location_type",
-                    "remote_derived",
-                    "visa_sponsored",
                     "yoe_range",
                     "salary_range",
                     "requirements_summary",
@@ -96,53 +88,12 @@ class JobAdmin(admin.ModelAdmin):
         ),
         (
             "Location Information",
-            {
-                "fields": (
-                    "locations",
-                    "locations_raw",
-                    "locations_derived",
-                    "cities_derived",
-                    "regions_derived",
-                    "countries_derived",
-                    "timezones_derived",
-                    "lats_derived",
-                    "lngs_derived",
-                    "locations_alt_raw",
-                )
-            },
-        ),
-        (
-            "Source Information",
-            {
-                "fields": (
-                    "source_type",
-                    "source",
-                    "source_domain",
-                    "job_board",
-                    "job_board_link",
-                )
-            },
-        ),
-        (
-            "Raw Data",
-            {
-                "fields": (
-                    "requirements_raw",
-                    "location_requirements_raw",
-                    "salary_raw",
-                    "company_data",
-                ),
-                "classes": ("collapse",),
-            },
+            {"fields": ("locations",)},
         ),
         (
             "Metadata",
             {
                 "fields": (
-                    "meta",
-                    "score",
-                    "company_slug",
-                    "job_slug",
                     "created_at",
                     "updated_at",
                 ),
