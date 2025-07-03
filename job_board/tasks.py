@@ -1,6 +1,4 @@
-import os
 import logging
-import requests
 from celery import shared_task
 from django.db import transaction
 from django.utils import timezone
@@ -11,6 +9,7 @@ from job_board.models import Job
 from pathlib import Path
 import glob
 from aplica_backend.settings import LOGS_DIR
+from .utils import fetch_hirebase_jobs
 
 # Get logger for this module
 logger = logging.getLogger(__name__)
@@ -103,121 +102,122 @@ def parse_datetime(date_string: str) -> Optional[datetime]:
 
 
 @shared_task
-def hirebase_task():
-    """Main task to fetch and process job data from Hirebase API with pagination."""
-    endpoint: Optional[str] = os.environ.get("JOB_API_ENDPOINT")
-    api_key: Optional[str] = os.environ.get("JOB_API_KEY")
-
-    if not endpoint or not api_key:
-        logger.error(
-            "Missing JOB_API_ENDPOINT or JOB_API_KEY in environment variables."
-        )
+def hirebase_page_task(page: int, limit: int = 100):
+    """Fetch and process a single page of job data from Hirebase API."""
+    data = fetch_hirebase_jobs(page, limit)
+    if not data:
         return
+    jobs = data.get("jobs", [])
+    if not jobs:
+        logger.info(f"No jobs found on page {page}.")
+        return
+    date_posted = jobs[0].get("date_posted")
+    parsed_date = parse_datetime(date_posted)
+    if parsed_date:
+        days_diff = (timezone.now() - parsed_date).days
+        logger.info(
+            f"First job on page {page} has date_posted: {parsed_date} ({days_diff} days old)"
+        )
+        if days_diff > 8:
+            logger.info(
+                f"First job on page {page} is more than 8 days old. Stopping further processing."
+            )
+            return "stop"
+    else:
+        logger.warning(
+            f"Could not parse date_posted for first job on page {page}. Proceeding with page."
+        )
 
-    logger.info("Starting Hirebase task with pagination")
+    page_created_count = 0
+    page_updated_count = 0
+    for job_data in jobs:
+        try:
+            with transaction.atomic():
+                job_id = job_data.get("_id") or job_data.get("id")
+                if not job_id:
+                    logger.warning(f"Skipping job without ID: {job_data}")
+                    continue
+                date_posted = parse_datetime(job_data.get("date_posted"))
+                _, created = Job.objects.update_or_create(
+                    _id=job_id,
+                    defaults={
+                        "job_title": job_data.get("job_title"),
+                        "description": job_data.get("description", ""),
+                        "application_link": job_data.get("application_link")
+                        or job_data.get("url", ""),
+                        "job_categories": job_data.get("job_categories"),
+                        "job_type": job_data.get("job_type"),
+                        "location_type": job_data.get("location_type"),
+                        "yoe_range": job_data.get("yoe_range"),
+                        "date_posted": date_posted or timezone.now(),
+                        "company_name": job_data.get("company_name"),
+                        "company_link": job_data.get("company_link"),
+                        "company_logo": job_data.get("company_logo"),
+                        "requirements_summary": job_data.get("requirements_summary"),
+                        "locations": job_data.get("locations"),
+                        "salary_range": job_data.get("salary_range"),
+                        "company_data": job_data.get("company_data"),
+                        "visa_sponsored": job_data.get("visa_sponsored"),
+                        "company_slug": job_data.get("company_slug"),
+                        "job_slug": job_data.get("job_slug"),
+                        "job_meta": job_data.get("meta"),
+                        "score": job_data.get("score"),
+                    },
+                )
+                if created:
+                    page_created_count += 1
+                else:
+                    page_updated_count += 1
+        except Exception as e:
+            logger.error(
+                f"Error processing Hirebase job {job_data.get('id', job_data.get('_id', 'unknown'))}: {e}"
+            )
+            continue
+    logger.info(
+        f"Page {page}: Created {page_created_count} jobs, Updated {page_updated_count} jobs."
+    )
+    return page_created_count, page_updated_count
 
-    headers = {
-        "Content-Type": "application/json",
-        "x-api-key": api_key,
-    }
 
-    page = 1
+@shared_task
+def hirebase_task(first_run: bool = False):
+    """Main task to fetch pagination info and process each page one by one."""
+    data = fetch_hirebase_jobs(1, 100)
+    if not data:
+        logger.error("Failed to fetch initial pagination info from Hirebase.")
+        return
+    total_pages = data.get("total_pages")
+    if not total_pages:
+        logger.info("No total_pages info in response; will only process first page.")
+        total_pages = 1
+    logger.info(f"Processing {total_pages} pages one by one.")
     limit = 100
-    total_processed = 0
     total_created = 0
     total_updated = 0
-    total_pages = None
-
-    while True:
-        payload = {"page": page, "limit": limit}
-        response = requests.post(endpoint, headers=headers, json=payload)
-        if response.status_code != 200:
-            logger.error(
-                f"Failed to fetch jobs from Hirebase (page {page}): {response.status_code} - {response.text}"
-            )
+    updated_counter = 0
+    for page in range(1, total_pages + 1):
+        logger.info(f"Processing page {page}.")
+        result = hirebase_page_task(page, limit)
+        if result == "stop":
+            logger.info("Stopping Hirebase task. 8 days old jobs found.")
             break
-
-        data = response.json()
-        jobs = data.get("jobs", [])
-        if not jobs:
-            logger.info(f"No jobs found on page {page}. Stopping pagination.")
-            break
-
-        page_created_count = 0
-        page_updated_count = 0
-
-        for job_data in jobs:
-            try:
-                with transaction.atomic():
-                    job_id = job_data.get("_id") or job_data.get("id")
-                    if not job_id:
-                        logger.warning(f"Skipping job without ID: {job_data}")
-                        continue
-
-                    date_posted = parse_datetime(job_data.get("date_posted"))
-
-                    _, created = Job.objects.update_or_create(
-                        _id=job_id,
-                        defaults={
-                            "job_title": job_data.get("job_title"),
-                            "description": job_data.get("description", ""),
-                            "application_link": job_data.get("application_link")
-                            or job_data.get("url", ""),
-                            "job_categories": job_data.get("job_categories"),
-                            "job_type": job_data.get("job_type"),
-                            "location_type": job_data.get("location_type"),
-                            "yoe_range": job_data.get("yoe_range"),
-                            "date_posted": date_posted or timezone.now(),
-                            "company_name": job_data.get("company_name"),
-                            "company_link": job_data.get("company_link"),
-                            "company_logo": job_data.get("company_logo"),
-                            "requirements_summary": job_data.get(
-                                "requirements_summary"
-                            ),
-                            "locations": job_data.get("locations"),
-                            "salary_range": job_data.get("salary_range"),
-                        },
-                    )
-
-                    total_processed += 1
-                    if created:
-                        page_created_count += 1
-                    else:
-                        page_updated_count += 1
-
-            except Exception as e:
-                logger.error(
-                    f"Error processing Hirebase job {job_data.get('id', job_data.get('_id', 'unknown'))}: {e}"
-                )
+        elif result:
+            page_created_count, page_updated_count = result
+            total_created += page_created_count
+            total_updated += page_updated_count
+            if page_updated_count == 100:
+                updated_counter += 1
+            else:
+                updated_counter = 0
+            if updated_counter == 5 and not first_run:
                 logger.info(
-                    f"Page {page}: Created {page_created_count} jobs, Updated {page_updated_count} jobs."
+                    "Stopping Hirebase task. 5 consecutive pages with 100 updated jobs found."
                 )
-                total_created += page_created_count
-                total_updated += page_updated_count
-                continue
+                break
 
-        logger.info(
-            f"Page {page}: Created {page_created_count} jobs, Updated {page_updated_count} jobs."
-        )
-        total_created += page_created_count
-        total_updated += page_updated_count
-
-        # Pagination: check if there are more pages
-        if total_pages is None:
-            total_pages = data.get("total_pages")
-            if not total_pages:
-                logger.info(
-                    "No total_pages info in response; will stop if jobs run out."
-                )
-                total_pages = page + 1  # fallback: stop if jobs run out
-        if page >= total_pages:
-            logger.info(f"Reached last page ({page}) of {total_pages}.")
-            break
-        page += 1
-
-    logger.info(
-        f"Hirebase task completed! Processed {total_processed} jobs. (Total Created: {total_created}, Total Updated: {total_updated})"
-    )
+    logger.info(f"Completed processing {total_pages} pages.")
+    logger.info(f"Total created: {total_created}")
+    logger.info(f"Total updated: {total_updated}")
 
 
 @shared_task

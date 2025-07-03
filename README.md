@@ -69,6 +69,11 @@ celery -A aplica_backend worker --loglevel=info --concurrency 8
 celery -A aplica_backend beat --loglevel=info
 ```
 
+### Start Celery Flower (view schedular tasks)
+```bash
+celery -A aplica_backend flower
+```
+
 ### Run the Hirebase Celery task manually
 You can enqueue the Hirebase Celery task using the custom Django command:
 ```bash

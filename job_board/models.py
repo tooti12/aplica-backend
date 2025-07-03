@@ -25,6 +25,12 @@ class Job(models.Model):
     salary_range = models.JSONField(blank=True, null=True)
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)
+    company_data = models.JSONField(blank=True, null=True)
+    visa_sponsored = models.BooleanField(default=False)
+    company_slug = models.TextField(max_length=100, blank=True, null=True)
+    job_slug = models.TextField(max_length=100, blank=True, null=True)
+    job_meta = models.TextField(max_length=100, blank=True, null=True)
+    score = models.TextField(max_length=100, blank=True, null=True)
 
     def __str__(self):
         return f"{self.job_title} (ID: {self._id})"

@@ -38,6 +38,8 @@ ALLOWED_HOSTS = (
     else []
 )
 
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 10000
+
 
 # Application definition
 
@@ -48,6 +50,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "rest_framework",
     "job_board",
 ]
 
@@ -256,4 +259,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "job_board.tasks.cleanup_old_logs",
         "schedule": crontab(minute=0, hour=2),  # Run at 2 AM daily
     },
+}
+
+# Django REST Framework settings
+REST_FRAMEWORK = {
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": 10,
 }
